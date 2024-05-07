@@ -16,7 +16,7 @@ IPs = [b'\x0a\x00\x01\x00', b'\x0a\x00\x02\x00', b'\x0a\x00\x03\x00', b'\x0a\x00
        b'\x0a\x00\x05\x00', b'\x0a\x00\x06\x00', b'\x0a\x00\x07\x00', b'\x0a\x00\x08\x00', ]
 host_IPs = ['10.0.1.0', '10.0.2.0', '10.0.3.0', '10.0.4.0',
             '10.0.5.0', '10.0.6.0', '10.0.7.0', '10.0.8.0', ]
-# 只记录了终端的mac地址，因为P4交换机流表中与终端互联时mac地址也是必需点，交换机之间点互联mac地址无关紧要
+# 只记录了终端的mac地址，因为P4交换机流表中与终端互联时mac地址也是必需的，交换机之间点互联mac地址无关紧要
 host_macs = ['08:00:00:00:01:01', '08:00:00:00:02:02',
              '08:00:00:00:03:03', '08:00:00:00:04:04',
              '08:00:00:00:05:05', '08:00:00:00:06:06',
@@ -65,13 +65,14 @@ def modifyRT(p4info_helper, src_sw, next_sw , dst_host):
         },
         action_name="MyIngress.ipv4_forward",
         action_params={
-            "dstAddr": "08:00:00:00:02:22",
+            "dstAddr": host_macs[dst_host],
             "port": ports[0][next_sw]
         })  # RECONCILE_AND_COMMIT
-    # 修改流表时必须用 MODIFY
+    # 修改流表时必须用 MODIFY，这个函数是罗通改的，在'../../utils/p4runtime_lib/switch.py:ModifyTableEntry.py'
     src_sw.ModifyTableEntry(table_entry)
 
 def main():
+    # 静态流表需要删除
     p4info_helper = p4runtime_lib.helper.P4InfoHelper("./build/basic.p4.p4info.txt")
     switches = []
     # 得到8个交换机对象
@@ -89,7 +90,7 @@ def main():
 
     # next_switch_table[i][j] 表示 交换机si到hj的下一跳交换机
     next_switch_table = [  # 交换机编号0~7 而不用1~8，简化后面的操作
-        [0, 4, 2, 2, 2, 7, 7, 7],  # next_switch_table [0][1] 从2改成7做测试
+        [0, 2, 2, 2, 2, 7, 7, 7],  # next_switch_table [0][1] 从2改成7做测试
         [3, 1, 3, 3, 4, 4, 6, 6],  # 同时 next_switch_table[i][i] = i以供ports使用
         [0, 3, 2, 3, 5, 5, 3, 7],   # next_switch_table [1][0] 从3改成6做测试
         [2, 1, 2, 3, 4, 4, 6, 6],
@@ -99,8 +100,14 @@ def main():
         [0, 6, 2, 6, 6, 5, 6, 7]]
 
     installRT(p4info_helper, switches, next_switch_table)
+    
+    
+    # 自己的算法 求出要改哪个交换机 src_sw，它的下一跳 next_sw , 目的终端dst_host
+    # 调用 modifyRT(p4info_helper, src_sw, next_sw , dst_host) 就可以
+    
+    
     print("*************  install flow tables !!! ")
-    time.sleep(5)
+    time.sleep(50)
     modifyRT(p4info_helper, src_sw=switches[0], next_sw=7, dst_host=host_IPs[1])
     print("*************  install 11111111!!! ")
     time.sleep(5)

@@ -1,6 +1,7 @@
 ### 实验说明/实验前期修改/注
 
 **NOTE1** : 本例程为了实现P4不要保存任何pcap文件以及任何log，将`../utils/p4runtime_switch.py` 中77行和79行改成如下：
+
 ``` python 
 # self.pcap_dump = pcap_dump
 self.pcap_dump = False
@@ -8,6 +9,7 @@ self.enable_debugger = enable_debugger
 # self.log_console = log_console
 self.log_console = False
 ```
+
 这样在运行时节省内存，降低磁盘压力。
 
 **NOTE2** : 本例程为了实现P4RUTIME中流表修改操作，将'../../utils/p4runtime_lib/switch.py' 中注释的部分进行修改
@@ -18,16 +20,18 @@ self.log_console = False
 如果是自己安装的python，会使用`/usr/local/lib/python3.8/site-packages`这个目录。
 本实验为了不污染默认环境，采用conda虚拟环境做的，安装的conda 4.5.11
 关于环境的其他解释
+
 '''
 我将162系统自带的python的google.rpc直接拷到pytorch虚拟环境下，
 再将虚拟机里面的p4模块拷到pytorch虚拟环境下，
 再安装一个google.protobuf模块，就可以直接运行而不需要再添加上面的额外环境了。 在`~/anaconda3/envs/pytorch/lib/python3.7/site-packages`里
 '''
+
 **NOTE4** : TCN层数设置，输入层，隐藏层 1 层，输出层
 
 
 ### 实验运行步骤
-1. 打开2个shell，所有运行步骤都在':~/p4/tutorials/exercises/congAvoid2-8h8s'文件夹下
+1. 打开2个shell，所有运行步骤都在':`~/p4/tutorials/exercises/congAvoid2-8h8s`'文件夹下
 
 2. 在此文件夹内打开一个shell窗口，输入`make` 运行P4
 
@@ -43,7 +47,7 @@ TCN2以及其他的学习模型需要选另一个，即`optimizer = optim.Adam(n
 
 输入`sudo su`,
     然后输入`source /home/sinet/anaconda3/bin/activate`激活普通用户的conda环境,
-    输入 `conda activate torch` 使用conda虚拟环境。
+    输入 `conda activate pytorch` 使用conda虚拟环境。
     再输入 `python model_train_s2h.py` 运行
 
 
@@ -54,6 +58,7 @@ TCN2以及其他的学习模型需要选另一个，即`optimizer = optim.Adam(n
 P4交换机每秒约处理150KB，重放的数据包每个包大小约54B，即每秒约处理2.78K个包
 每次实验进行100s，约收到278K个包，在P4交换机中设置每10个包收集一次相关实验数据，则每个数据需要27.8K个空间，
 
+scp /home/sinet/lt/*.py sinet@192.168.199.162:/home/sinet/lt/lt168/
 
 
 # 文件功能介绍

@@ -64,6 +64,9 @@ next_switch_table = [   # 交换机编号0~7 而不用1~8，简化后面的操�
     [2, 4, 2, 2, 4, 5, 7, 7],
     [7, 1, 3, 3, 4, 7, 6, 7],
     [0, 6, 2, 6, 6, 5, 6, 7]]
+
+
+
 # 原始流表，保存以防止改忘了
 # next_switch_table = [   #
 #     [-1, 2, 2, 2, 2, 7, 7, 7],
@@ -198,7 +201,7 @@ def main():
     for i in range(NUMBER_OF_SWITCH):
         switch = p4runtime_lib.bmv2.Bmv2SwitchConnection(
             name='s%d' % (i+1),
-            address='127.0.0.1:5005%d' % (i+1),
+            address='127.0.0.1:5005%d' % (i+1), # 192.168.199.162
             device_id=i)
         # proto_dump_file='logs/s1-p4runtime-requests.txt' 这个参数就不写了，不然每次修改流表就多一条记录，后期就太长了
         switch.MasterArbitrationUpdate()  # 向交换机发送主控握手请求,设置当前控制平面为主控平面。
@@ -213,10 +216,10 @@ def main():
 
     # 安装初始流表
     installRT(p4info_helper, switches, next_switch_table)
-    
+    time.sleep(100)
     if parser_args.ca:
     # 载入深度学习模块
-        net = torch.load("./predict/TCN1.pt")   # 使用临时的模型训练试试 
+        net = torch.load("./predict/TMP18.pt")   # 使用临时的模型训练试试 
         if parser_args.learn:
             print("开启在线学习...")
             net.train() # 开启训练模式
@@ -231,7 +234,7 @@ def main():
         # optimizer = optim.Adam(net.parameters(), lr=lr, weight_decay=weight_decay)
         
         best_rt_list, best_fit_list, best_pro_list = [], [], []
-        model_file = "predict/TCN1.pt"
+        model_file = "predict/TMP18.pt"
         last_predict_output = None
     
     # 新建进程去放流量

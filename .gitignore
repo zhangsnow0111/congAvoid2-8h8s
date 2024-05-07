@@ -28,6 +28,7 @@ dataset/
 
 # output folders
 output/
+output_*/
 
 # pcaps folders
 pcaps/
