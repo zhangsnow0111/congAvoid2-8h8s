@@ -112,7 +112,7 @@ class TemporalConvNet(nn.Module):
         return self.network(x)
 
 class TCN1(nn.Module):
-    def __init__(self, num_hiddens=[32,8], s2h = True):  # 这里的隐层最后一层必须是8
+    def __init__(self, num_hiddens=[32,8,8,8], s2h = True):  # 这里的隐层最后一层必须是8
         super().__init__() 
         # 每个点的流量值只被自己影响
         # self.tp1 = [[0],[1],[2],[3],[4],[5],[6],[7]]    

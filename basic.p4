@@ -88,9 +88,8 @@ control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
     // 先试试 10000个空间
-    register<bit<32>>(2) reg_idx_and_cnt; 
-    register<bit<48>>(LENGTH) reg_ingress_global_timestamp; 
-    register<bit<48>>(LENGTH) reg_egress_global_timestamp;  
+    // register<bit<32>>(2) reg_idx_and_cnt; 
+    
 
     counter(8, CounterType.packets) pkt_counter;    // define a packets counter with 8 size;
     // register <bit<32>>(8) pkt_counter;			// register<T>
@@ -122,29 +121,11 @@ control MyIngress(inout headers hdr,
 
     apply {
         if (hdr.ipv4.isValid()) {
+            //去往某个网段的包统计
             bit<8> tmp = hdr.ipv4.dstAddr[15:8];
             bit<32> idx = (bit<32>)(tmp - 1);
             pkt_counter.count(idx);
-
             ipv4_lpm.apply();
-
-            bit<32> idx1;//字节数
-            bit<32> cnt;//新的字节数
-            reg_idx_and_cnt.read(idx1, 0);
-            reg_idx_and_cnt.read(cnt, 1);
-            if (cnt == 0){
-                reg_ingress_global_timestamp.write(idx1, standard_metadata.ingress_global_timestamp);
-                reg_egress_global_timestamp.write(idx1, standard_metadata.egress_global_timestamp);
-                idx1 = idx1 + 1;
-                cnt = cnt + 1;
-                reg_idx_and_cnt.write(0, idx1);
-                reg_idx_and_cnt.write(1, cnt);
-            } else if (cnt == 10){
-                reg_idx_and_cnt.write(1, 0); // 在第 1 个位置 cnt 上写上0
-            } else {
-                cnt = cnt + 1;
-                reg_idx_and_cnt.write(1, cnt);
-            }
         }
     }
 }
@@ -162,28 +143,35 @@ control MyEgress(inout headers hdr,
     register<bit<32>>(LENGTH) reg_enq_timestamp;    
     register<bit<19>>(LENGTH) reg_enq_qdepth;     
     register<bit<32>>(LENGTH) reg_deq_timedelta;     
-    register<bit<19>>(LENGTH) reg_deq_qdepth;   
+    register<bit<19>>(LENGTH) reg_deq_qdepth; 
+    register<bit<48>>(LENGTH) reg_ingress_global_timestamp; 
+    register<bit<48>>(LENGTH) reg_egress_global_timestamp;  
 
     apply { 
-        bit<32> idx;//字节数
-        bit<32> cnt;//新的字节数
-        reg_idx_and_cnt.read(idx, 0);
-        reg_idx_and_cnt.read(cnt, 1);
-        if (cnt == 0){
-            reg_enq_timestamp.write(idx, standard_metadata.enq_timestamp);  // (bit<32>)
-            reg_enq_qdepth.write(idx, standard_metadata.enq_qdepth);
-            reg_deq_timedelta.write(idx, standard_metadata.deq_timedelta);
-            reg_deq_qdepth.write(idx, standard_metadata.deq_qdepth);
-            idx = idx + 1;
-            cnt = cnt + 1;
-            reg_idx_and_cnt.write(0, idx);
-            reg_idx_and_cnt.write(1, cnt);
-        } else if (cnt == 10){
-            reg_idx_and_cnt.write(1, 0); // 在第 1 个位置 cnt 上写上0
-        } else {
-            cnt = cnt + 1;
-            reg_idx_and_cnt.write(1, cnt);
-        }
+        //if (hdr.ipv4.isValid()) {
+        //周期性的信息采样和存储
+            bit<32> idx;//字节数
+            bit<32> cnt;//新的字节数
+            reg_idx_and_cnt.read(idx, 0);
+            reg_idx_and_cnt.read(cnt, 1);
+            // if (cnt == 0){
+                reg_enq_timestamp.write(idx, standard_metadata.enq_timestamp);  // (bit<32>)
+                reg_enq_qdepth.write(idx, standard_metadata.enq_qdepth);
+                reg_deq_timedelta.write(idx, standard_metadata.deq_timedelta);
+                reg_deq_qdepth.write(idx, standard_metadata.deq_qdepth);
+                reg_ingress_global_timestamp.write(idx, standard_metadata.ingress_global_timestamp);
+                reg_egress_global_timestamp.write(idx, standard_metadata.egress_global_timestamp);
+                idx = idx + 1;
+                cnt = cnt + 1;
+                reg_idx_and_cnt.write(0, idx);
+                reg_idx_and_cnt.write(1, cnt);
+            // } else if (cnt == 10){
+            //     reg_idx_and_cnt.write(1, 0); // 在第 1 个位置 cnt 上写上0
+            // } else {
+            //     cnt = cnt + 1;
+            //     reg_idx_and_cnt.write(1, cnt);
+            // }
+        //}
     }
 }
 /*************************************************************************

@@ -5,7 +5,7 @@
 num_tcpreplay=$(ps -au | grep tcpreplay|awk 'END{print NR}')
 if [ $num_tcpreplay -gt 1 ]; then
   echo "kill replay1!!!"
-  ps -ef | grep tcpreplay | grep -v grep | cut -c 9-15 | xargs kill -9
+  ps -ef | grep tcpreplay | grep -v grep | cut -c 9-16 | xargs kill -9
   echo "kill replay2!!!"
 	sleep 1s
 fi

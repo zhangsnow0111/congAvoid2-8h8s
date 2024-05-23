@@ -5,7 +5,7 @@
 num_tcpreplay=$(ps -au | grep tcpreplay|awk 'END{print NR}')
 if [ $num_tcpreplay -gt 1 ]; then
   echo "kill replay1!!!"
-  ps -ef | grep tcpreplay | grep -v grep | cut -c 9-15 | xargs kill -9
+  ps -ef | grep tcpreplay | grep -v grep | cut -c 9-16 | xargs kill -9
   echo "kill replay2!!!"
 	sleep 1s
 fi
@@ -41,11 +41,12 @@ screen -dmS h6
 screen -dmS h7
 screen -dmS h8
 sleep 1s
-screen -S h1 -p 0 -X stuff "tcpreplay -i s1-eth3 ./dataset/202204131400/h1.pcap\n"
-screen -S h2 -p 0 -X stuff "tcpreplay -i s2-eth1 ./dataset/202204131400/h2.pcap\n"
-screen -S h3 -p 0 -X stuff "tcpreplay -i s3-eth2 ./dataset/202204131400/h3.pcap\n"
-screen -S h4 -p 0 -X stuff "tcpreplay -i s4-eth2 ./dataset/202204131400/h4.pcap\n"
-screen -S h5 -p 0 -X stuff "tcpreplay -i s5-eth4 ./dataset/202204131400/h5.pcap\n"
-screen -S h6 -p 0 -X stuff "tcpreplay -i s6-eth5 ./dataset/202204131400/h6.pcap\n"
-screen -S h7 -p 0 -X stuff "tcpreplay -i s7-eth6 ./dataset/202204131400/h7.pcap\n"
+screen -S h1 -p 0 -X stuff "tcpreplay -i s1-eth3 ./dataset/202204131400/h1.pcap\n"&
+screen -S h2 -p 0 -X stuff "tcpreplay -i s2-eth1 ./dataset/202204131400/h2.pcap\n"&
+screen -S h3 -p 0 -X stuff "tcpreplay -i s3-eth2 ./dataset/202204131400/h3.pcap\n"&
+screen -S h4 -p 0 -X stuff "tcpreplay -i s4-eth2 ./dataset/202204131400/h4.pcap\n"&
+screen -S h5 -p 0 -X stuff "tcpreplay -i s5-eth4 ./dataset/202204131400/h5.pcap\n"&
+screen -S h6 -p 0 -X stuff "tcpreplay -i s6-eth5 ./dataset/202204131400/h6.pcap\n"&
+screen -S h7 -p 0 -X stuff "tcpreplay -i s7-eth6 ./dataset/202204131400/h7.pcap\n"&
 screen -S h8 -p 0 -X stuff "tcpreplay -i s8-eth6 ./dataset/202204131400/h8.pcap\n"
+#/home/sinet/P4/tutorials/exercises/congAvoid2-8h8s/dataset/202204131400/h1.pcap

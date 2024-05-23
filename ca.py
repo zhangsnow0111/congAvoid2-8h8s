@@ -8,6 +8,8 @@ import grpc
 import argparse
 import copy
 import datetime
+import subprocess 
+
 
 # sys.path.append("/usr/local/lib/python3.8/dist-packages")
 '''
@@ -17,6 +19,7 @@ import datetime
 '''
 from p4.v1 import p4runtime_pb2
 from p4.v1 import p4runtime_pb2_grpc
+from predict.load_adj import load_adj 
 
 sys.path.append(
     os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -181,6 +184,22 @@ def print_matrix(matrix_name, matrix):
     for item in matrix:
         print(item)
 
+def queue_rate_set(rate):
+    for i in range(8):
+        p = subprocess.Popen('simple_switch_CLI --thrift-port 909%d'%i,shell=True,stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE,stderr=subprocess.PIPE,
+                                universal_newlines=True) 
+        
+        p.stdin.write(f'set_queue_rate {rate}\n')
+        
+        # print(f'修改交换机{i}的queue_rate')
+        # 读取命令行界面的输出
+        # output = p.communicate()[0]
+        # # 打印输出
+        # print(output)
+        p.communicate()
+    # p.stdin.close()
+
 
 def main():
     parser = argparse.ArgumentParser(description="use congestion avoidance or not")
@@ -216,10 +235,15 @@ def main():
 
     # 安装初始流表
     installRT(p4info_helper, switches, next_switch_table)
-    time.sleep(100)
+    time.sleep(3)
+
+    # 设置队列处理速度，要不然队列跑不上来，通过实验觉得队列处理速度设置为600比较合适（本来是500，但是不想太深）
+    # queue_rate_set(500)
+
     if parser_args.ca:
     # 载入深度学习模块
-        net = torch.load("./predict/TMP18.pt")   # 使用临时的模型训练试试 
+        print("拥塞避免开启")
+        net = torch.load("predict/TCN10509.pt")   # 使用临时的模型训练试试 
         if parser_args.learn:
             print("开启在线学习...")
             net.train() # 开启训练模式
@@ -230,11 +254,11 @@ def main():
         loss_func = nn.MSELoss()    # 均方误差 是预测值与真实值之差的平方和的平均值
         lr = 0.00001
         weight_decay = 5e-4
-        optimizer = optim.Adam(params=[param for model in net.tcn_models for param in model.parameters()], lr=lr, weight_decay=weight_decay)
-        # optimizer = optim.Adam(net.parameters(), lr=lr, weight_decay=weight_decay)
+        optimizer = optim.Adam(net.parameters(), lr=lr, weight_decay=weight_decay)
+        # optimizer = optim.Adam(params=[param for model in net.tcn_models for param in model.parameters()], lr=lr, weight_decay=weight_decay)
         
         best_rt_list, best_fit_list, best_pro_list = [], [], []
-        model_file = "predict/TMP18.pt"
+        model_file = "predict/TCN10509_learn2.pt"
         last_predict_output = None
     
     # 新建进程去放流量
@@ -245,11 +269,15 @@ def main():
     cnt = 20  #只运行了100s，获取了100s的数据
     while cnt: 
         start_time = time.perf_counter()  # 计算程序用时的变量，以微秒为单位
+        # print("switches: %s, client_stubs: %s, p4info_helper: %s, counter_name: %s", switches, client_stubs, p4info_helper, counter_name)
 
         # 查询8个交换机的计数器
         counter_value = get_counter_value(switches, client_stubs, p4info_helper, counter_name)
+        # print(counter_value)
+
         # 与上一次计数器的值相减得到s2h的流量矩阵
         s2h_10steps.append([[i - j for i, j in zip(row_cur, row_last)] for row_cur, row_last in zip(counter_value, last_counter_value)])
+        # print(s2h_10steps)
         last_counter_value = counter_value  # 当前counter值赋给last_counter
 
         s2h = s2h_10steps[-1]
@@ -260,6 +288,7 @@ def main():
             data_arr = np.array(s2h_10steps).reshape(-1 ,len(s2h_10steps[0])) # 改变形状以使能用normalize 进行归一化
             data_arr = log_min_max_normalize3(data_arr).reshape(10 ,len(s2h_10steps[0]), -1)
             data_tensor = torch.tensor(data_arr).unsqueeze(0).float()    # 在最前面增加一维  data_tensor 的寸尺 1*10*8*8
+            # print(data_tensor.shape)
             
             if parser_args.learn:   # 开启了在线学习
                 optimizer.zero_grad()
@@ -269,13 +298,26 @@ def main():
                     loss.backward()
                     optimizer.step()
                 
-            predict_output = net(data_tensor, 0)[0]  # 得到预测结果  1*8*8 
+            # predict_output = net(data_tensor, 0)[0]  # 得到预测结果  1*8*8 
+            # LSTM_GCN需要下面这个
+            predict_output = net(data_tensor, load_adj())[0]  # 得到预测结果  1*8*8
+            # print("predict_output:\n")
+            # print(predict_output)
+            # ("predict_output size: {} \n".format(predict_output.shape))
+
             last_predict_output = predict_output.clone()    # 保存此轮的预测结果供下一轮训练更新模型
             # print(predict_output)
             # 关于clone()和 detach()，请看 https://blog.csdn.net/winycg/article/details/100813519
             s2h_predicted = denormalize(predict_output.clone().detach())# 去归一化，传进去克隆出的（新开辟了内存，因为需要detach）
-            
+            # print("s2h_predicted\n")
+            # print(s2h_predicted)
+            # print("s2h_predicted size: {} \n".format(s2h_predicted.shape))
+
+            # print("s2h_predicted: %s" % type(s2h_predicted))
+
             best_rt, best_fit, best_pro = yq.ant_colony_optimization(s2h_predicted, cur_route_table, copy.deepcopy(yq.pheromone), copy.deepcopy(yq.probabilities))
+            
+            
             # 必须要传入克隆的pheromone和probabilities，不然就进去把这两个变量给改了，而每一个时隙都需要使用原始的他俩
             best_rt_list.append(copy.deepcopy(best_rt)) # 对于多维list，必须用深拷贝
             best_fit_list.append(best_fit)
@@ -294,15 +336,20 @@ def main():
     stop_inject = "bash stop_inject.sh"    
     os.system(stop_inject)
     cur_date_time = datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
+    model_name ="TCN10509"
+    directory = 'output/%s_%s_wo' % (cur_date_time, model_name)
+    
     if parser_args.ca:
-        with open('./output/best_rt_list_%s.txt'%cur_date_time, 'w') as file:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        with open('output/%s_%s_wo/best_rt_list_%s.txt'% (cur_date_time, model_name, cur_date_time), 'w') as file:
             for best_rt in best_rt_list:
                 #for row in best_rt:
                 file.write(str(best_rt))
                 file.write('\n')
-        with open('./output/best_fit_list_%s.txt'%cur_date_time, 'w') as file:
+        with open('output/%s_%s_wo/best_fit_list_%s.txt'% (cur_date_time, model_name, cur_date_time), 'w') as file:
             file.write(str(best_fit_list))    
-        with open('./output/best_pro_list_%s.txt'%cur_date_time, 'w') as file:
+        with open('output/%s_%s_wo/best_pro_list_%s.txt'% (cur_date_time, model_name, cur_date_time), 'w') as file:
             for best_pro in best_pro_list:  # best_pro 是三维的， 由 sihjsk 组成
                 best_pro = best_pro.tolist()
                 for si in best_pro:   

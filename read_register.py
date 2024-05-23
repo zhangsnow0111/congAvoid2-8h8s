@@ -2,6 +2,8 @@
 # coding=utf-8
 
 import subprocess 
+import os
+from datetime import datetime
 
 if __name__ == '__main__':
     register_names = ["reg_enq_timestamp", "reg_enq_qdepth", "reg_deq_timedelta", "reg_deq_qdepth", "reg_ingress_global_timestamp", "reg_egress_global_timestamp"]
@@ -11,6 +13,8 @@ if __name__ == '__main__':
         a = file.readlines()
         print(a[0].count(","))
     '''
+    current_time = datetime.now()
+    formatted_time = current_time.strftime("%Y%m%d%H%M")
     for i in range(8):
         for register_name in register_names:
             p = subprocess.Popen('simple_switch_CLI --thrift-port 909%d'%i,shell=True,stdin=subprocess.PIPE,
@@ -24,7 +28,11 @@ if __name__ == '__main__':
             
             # with open('output/test_%s.csv'%register_name, 'w') as file:
             #     file.write(out)
-            with open('output/h%d_with_ca/%s.csv'%(i+1, register_name), 'w') as file:
+            # 在此处确定一下是用了ca还是没有用的
+            directory = 'output/%s_wo/%s_s%d_wo' % (formatted_time, formatted_time, i+1)
+            if not os.path.exists(directory):
+                 os.makedirs(directory)
+            with open('output/%s_wo/%s_s%d_wo/%s.csv'%(formatted_time, formatted_time, i+1, register_name), 'w') as file:
                 file.write(out)
             # with open('output/h%d_without_ca/%s.csv'%(i+1, register_name), 'w') as file:
             #     file.write(out)

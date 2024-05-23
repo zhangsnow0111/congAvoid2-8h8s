@@ -79,6 +79,7 @@ Q = 100     # Q表示信息素增量，pheromone表示信息素矩阵
 ''' 简单结构如下
 [[[s0h0->s0, s0h0->s1,..., s0h0->s7], [s0h1->s0, s0h1->s1,..., s0h7->s7]], [s1h0->s0, ..., s7h7->s6, s7h7->s7]]]
 '''
+#三维列表 pheromone，表示信息素的矩阵， (num_switches, num_hosts, num_switches)
 pheromone = [[[1 for _ in range(num_switches)] for _ in range(num_hosts)] for _ in range(num_switches)]
 pheromone = np.array(pheromone)
 coord = [(i, j, k) for i in range(num_switches) for j in range(num_hosts) for k in range(num_switches)]
@@ -107,7 +108,14 @@ def ant_colony_optimization(s2h, next_switch_table, pheromone, probabilities):
     best_probabilities = probabilities.copy()
     best_fitness = 0    # 记录最大的适应度
     num = 1
+    # print("s2h: %s" % type(s2h))
+    # print("next_switch_table: %s" % type(next_switch_table))
     s2s_matrix_0 = cal_s2s_matrix(s2h, next_switch_table)
+
+    # 2024.05.14更正，需要保证如果已经是最小的，就不改了
+    best_fitness = cal_fitness(s2s_matrix_0, e=0.2, g=0.8)
+    update_number = 0
+
     for iter in range(NUM_ITERATIONS):
         # 记录某个位置上的概率有没有被选过
         fitness_list = []   # 适应度的列表，用来计算更新信息素
@@ -151,13 +159,20 @@ def ant_colony_optimization(s2h, next_switch_table, pheromone, probabilities):
                     best_fitness = fitness
                     best_rt = route_table.copy()
                     best_probabilities = p_hat.copy()
+                    update_number += 1
                 count += 1
         update_pheromone(solution_list, fitness_list, pheromone)
+    print('本次计算中best_fitness经历了 %d 次迭代\n' %(update_number))
     return best_rt, best_fitness, best_probabilities
 
 # 根据s2h矩阵算出 s2s 以供之后算链路利用率和适应度
 def cal_s2s_matrix(s2h_matrix, next_switch_table):
     s2s = [[0 for _ in range(num_switches)] for _ in range(num_switches)]
+    # print("s2h_matrix: %s" % type(s2h_matrix))
+    # print(s2h_matrix)
+    # print("111111s2s: %s" % type(s2s))
+    # print(s2s)
+
     for cur_sw, row in enumerate(next_switch_table):
         for col, connected_sw in enumerate(row):
             if connected_sw != cur_sw:
